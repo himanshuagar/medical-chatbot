@@ -1,137 +1,464 @@
-# Build-a-Complete-Medical-Chatbot-with-LLMs-LangChain-Pinecone-Flask-AWS
+# 🩺 Medical RAG Chatbot using LangChain, Pinecone, Ollama, Flask & AWS
 
+A production-ready **Retrieval-Augmented Generation (RAG)** chatbot that answers medical questions using semantic search, vector databases, reranking, and a local Large Language Model (Llama 3.2 via Ollama).
 
-# working product 
-![alt text](image.png)
+Unlike a basic RAG application, this project includes **retrieval optimization**, **Cross Encoder reranking**, and an **offline evaluation framework** using **Precision@K** and **Recall@K** to measure retrieval quality.
 
+---
 
+# Demo
 
+![Medical Chatbot](image.png)
 
-# How to run?
-### STEPS:
+---
 
-Clone the repository
+#  Features
+
+- 📄 Medical PDF ingestion
+- 🔍 Semantic Search using Pinecone Vector Database
+- ✂️ Recursive Text Chunking
+- 🧠 BGE Embeddings (`BAAI/bge-small-en-v1.5`)
+- 🎯 Cross Encoder Reranking
+- 🤖 Local LLM using Ollama (Llama 3.2)
+- 📊 Retrieval Evaluation (Precision@K & Recall@K)
+- 📑 Metadata-aware Chunking (Page Number + Chunk ID)
+- 🌐 Flask REST API
+- 💬 Interactive Chat UI
+- 🐳 Docker Support
+- ☁️ AWS Deployment (ECR + EC2)
+- ⚙️ GitHub Actions CI/CD
+
+---
+
+# 🏗️ System Architecture
+
+```text
+                           Medical PDF
+                                │
+                                ▼
+                    PDF Loader (LangChain)
+                                │
+                                ▼
+                    Metadata Optimization
+                                │
+                                ▼
+              Recursive Character Text Splitter
+                                │
+                                ▼
+                  BGE Embedding Generation
+                                │
+                                ▼
+                  Pinecone Vector Database
+────────────────────────────────────────────────────────────
+
+                     User Question
+                           │
+                           ▼
+                 Generate Query Embedding
+                           │
+                           ▼
+               Pinecone Retrieval (Top-10)
+                           │
+                           ▼
+              Cross Encoder Reranker (Top-3)
+                           │
+                           ▼
+                  Prompt Template
+                           │
+                           ▼
+              Llama 3.2 (Ollama Local LLM)
+                           │
+                           ▼
+                  Grounded Medical Answer
+```
+
+---
+
+# 📂 Project Structure
+
+```text
+MedicalAPP/
+│
+├── app.py
+├── store_index.py
+├── inspect_chunks.py
+├── Dockerfile
+├── requirements.txt
+├── README.md
+├── .env
+│
+├── data/
+│   └── Medical_book.pdf
+│
+├── src/
+│   ├── helper.py
+│   ├── prompt.py
+│   ├── reranker.py
+│   └── evaluation.py
+│
+├── templates/
+│   └── index.html
+│
+├── static/
+│   ├── style.css
+│   └── script.js
+│
+└── .github/
+    └── workflows/
+        └── main.yml
+```
+
+---
+
+# ⚙️ Installation
+
+## Clone Repository
 
 ```bash
-git clone 
+git clone https://github.com/<your-username>/medical-rag-chatbot.git
+
+cd medical-rag-chatbot
 ```
-### STEP 01- Create a conda environment after opening the repository
+
+---
+
+## Create Conda Environment
 
 ```bash
-conda create -n medibot python=3.10 -y
+conda create -n medicalbot python=3.10 -y
 ```
+
+Activate
 
 ```bash
-conda activate medibot
+conda activate medicalbot
 ```
 
+---
 
-### STEP 02- install the requirements
+## Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
+---
 
-### Create a `.env` file in the root directory and add your Pinecone & openai credentials as follows:
+## Install Ollama
 
-```ini
-PINECONE_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-OPENAI_API_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-```
+Download Ollama
 
+https://ollama.com
+
+Pull the Llama model
 
 ```bash
-# run the following command to store embeddings to pinecone
+ollama pull llama3.2
+```
+
+Start Ollama
+
+```bash
+ollama serve
+```
+
+---
+
+## Environment Variables
+
+Create a `.env` file.
+
+```ini
+PINECONE_API_KEY=xxxxxxxxxxxxxxxxxxxx
+OPENAI_API_KEY=xxxxxxxxxxxxxxxxxxxx
+```
+
+> Note: OPENAI_API_KEY is optional if using only Ollama.
+
+---
+
+# 📄 Index Medical Documents
+
+```bash
 python store_index.py
 ```
 
+This step
+
+- Loads PDF
+- Splits into chunks
+- Creates embeddings
+- Stores vectors in Pinecone
+
+---
+
+# ▶️ Run Application
+
 ```bash
-# Finally run the following command
 python app.py
 ```
 
-Now,
-```bash
-open up localhost:
+Open
+
+```
+http://localhost:5001
 ```
 
+---
 
-### Techstack Used:
+# 🔍 Retrieval Pipeline
+
+The retrieval workflow follows a multi-stage architecture.
+
+```
+Question
+    │
+    ▼
+Vector Embedding
+    │
+    ▼
+Pinecone (Top 10)
+    │
+    ▼
+Cross Encoder Reranker
+    │
+    ▼
+Top 3 Chunks
+    │
+    ▼
+Llama 3.2
+```
+
+This approach improves retrieval quality while minimizing irrelevant context sent to the LLM.
+
+---
+
+# 📊 Retrieval Evaluation
+
+An offline evaluation framework is implemented to measure retrieval performance.
+
+Metrics used
+
+- Precision@K
+- Recall@K
+
+Evaluation Dataset
+
+Each evaluation sample contains
+
+```python
+{
+    "question": "What is Hepatitis A?",
+    "expected_chunks": {1239,1240}
+}
+```
+
+The retrieved chunk IDs are compared with manually labeled expected chunks to compute retrieval metrics.
+
+---
+
+# 🎯 Reranking
+
+Instead of directly using Pinecone search results,
+
+```
+Pinecone
+      │
+      ▼
+LLM
+```
+
+the application performs
+
+```
+Pinecone (Top-10)
+        │
+        ▼
+Cross Encoder
+        │
+        ▼
+Top-3 Chunks
+        │
+        ▼
+Llama 3.2
+```
+
+Benefits
+
+- Higher Precision@K
+- Better context relevance
+- Reduced hallucinations
+- Improved answer quality
+
+---
+
+#  AI/ML Concepts Used
+
+- Retrieval-Augmented Generation (RAG)
+- Dense Vector Embeddings
+- Semantic Search
+- Pinecone Vector Database
+- Recursive Text Chunking
+- Prompt Engineering
+- Cross Encoder Reranking
+- Metadata Filtering
+- Retrieval Evaluation
+- Precision@K
+- Recall@K
+- Local LLM Inference
+- Vector Similarity Search
+
+---
+
+#  Tech Stack
+
+## Backend
 
 - Python
-- LangChain
 - Flask
-- GPT
+- LangChain
+
+## LLM
+
+- Ollama
+- Llama 3.2
+
+## Embeddings
+
+- BAAI/bge-small-en-v1.5
+
+## Vector Database
+
 - Pinecone
 
+## Reranker
 
+- Sentence Transformers
+- Cross Encoder
 
-# AWS-CICD-Deployment-with-Github-Actions
+## Frontend
 
-## 1. Login to AWS console.
+- HTML
+- CSS
+- JavaScript
 
-## 2. Create IAM user for deployment
+## Deployment
 
-	#with specific access
+- Docker
+- AWS EC2
+- AWS ECR
+- GitHub Actions
 
-	1. EC2 access : It is virtual machine
+---
 
-	2. ECR: Elastic Container registry to save your docker image in aws
+#  Docker
 
+Build image
 
-	#Description: About the deployment
+```bash
+docker build -t medical-rag-chatbot .
+```
 
-	1. Build docker image of the source code
+Run container
 
-	2. Push your docker image to ECR
+```bash
+docker run -p 5001:5001 medical-rag-chatbot
+```
 
-	3. Launch Your EC2 
+---
 
-	4. Pull Your image from ECR in EC2
+# ☁️ AWS Deployment
 
-	5. Lauch your docker image in EC2
+Deployment workflow
 
-	#Policy:
+```
+GitHub
+   │
+   ▼
+GitHub Actions
+   │
+   ▼
+Docker Build
+   │
+   ▼
+Push Image
+   │
+   ▼
+Amazon ECR
+   │
+   ▼
+EC2 Pulls Image
+   │
+   ▼
+Docker Container
+```
 
-	1. AmazonEC2ContainerRegistryFullAccess
+AWS Services Used
 
-	2. AmazonEC2FullAccess
+- Amazon EC2
+- Amazon ECR
+- IAM
+- GitHub Actions
 
-	
-## 3. Create ECR repo to store/save docker image
-    - Save the URI: 315865595366.dkr.ecr.us-east-1.amazonaws.com/medicalbot
+---
 
-	
-## 4. Create EC2 machine (Ubuntu) 
+#  CI/CD
 
-## 5. Open EC2 and Install docker in EC2 Machine:
-	
-	
-	#optinal
+The project uses GitHub Actions to automate deployment.
 
-	sudo apt-get update -y
+Pipeline
 
-	sudo apt-get upgrade
-	
-	#required
+- Checkout Code
+- Build Docker Image
+- Push Image to Amazon ECR
+- SSH into EC2
+- Pull Latest Image
+- Restart Docker Container
 
-	curl -fsSL https://get.docker.com -o get-docker.sh
+---
 
-	sudo sh get-docker.sh
+#  Future Enhancements
 
-	sudo usermod -aG docker ubuntu
+- Hybrid Search (BM25 + Dense Retrieval)
+- Multi-Query Retrieval
+- Context Compression Retriever
+- Query Expansion
+- Streaming Responses
+- Conversation Memory
+- LangSmith Observability
+- Source Citation Generation
+- Medical Guardrails
+- Feedback-based Retrieval Optimization
 
-	newgrp docker
-	
-# 6. Configure EC2 as self-hosted runner:
-    setting>actions>runner>new self hosted runner> choose os> then run command one by one
+---
 
+#  Resume Highlights
 
-# 7. Setup github secrets:
+This project demonstrates experience in
 
-   - AWS_ACCESS_KEY_ID
-   - AWS_SECRET_ACCESS_KEY
-   - AWS_DEFAULT_REGION
-   - ECR_REPO
-   - PINECONE_API_KEY
-   - OPENAI_API_KEY
+- Production-ready Retrieval-Augmented Generation (RAG)
+- Semantic Search using Pinecone
+- Cross Encoder Reranking
+- Local LLM deployment with Ollama
+- Retrieval Optimization
+- Precision@K & Recall@K Evaluation
+- Docker Containerization
+- AWS Deployment
+- GitHub Actions CI/CD
+- Flask REST APIs
+
+---
+
+#  Author
+
+**Himanshu Agarwal**
+
+AI / Machine Learning Engineer
+
+GitHub: https://github.com/<your-github>
+
+LinkedIn: https://linkedin.com/in/<your-linkedin>
+
+---
+
+#  If you found this project useful, consider giving it a Star!
