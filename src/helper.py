@@ -23,18 +23,28 @@ def filter_to_minimal_docs(docs: List[Document]) -> List[Document]:
         minimal_docs.append(
             Document(
                 page_content=doc.page_content,
-                metadata={"source": src}
+                metadata={
+                    "source": doc.metadata.get("source"),
+                    "page": doc.metadata.get("page")
+                }
             )
         )
     return minimal_docs
 
+
 def text_splitter(documents, chunk_size=500, chunk_overlap=20):
-    text_splitter = RecursiveCharacterTextSplitter(
+
+    splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
         chunk_overlap=chunk_overlap,
     )
-    text_chunk = text_splitter.split_documents(documents)
-    return text_chunk
+
+    chunks = splitter.split_documents(documents)
+
+    for i, chunk in enumerate(chunks):
+        chunk.metadata["chunk_id"] = i
+
+    return chunks
 
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 def download_embeddings():
