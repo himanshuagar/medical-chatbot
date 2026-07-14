@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 import os
-
+from src.reranker import rerank
 from langchain_pinecone import PineconeVectorStore
 from langchain_ollama import ChatOllama
 
@@ -10,6 +10,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 from src.helper import download_embeddings
 from src.prompt import *
+from langchain_core.runnables import RunnableLambda
 
 load_dotenv()
 
@@ -30,12 +31,30 @@ docsearch = PineconeVectorStore.from_existing_index(
 
 retriever = docsearch.as_retriever(
     search_type="similarity",
-    search_kwargs={"k": 2}
+    search_kwargs={"k": 10}
 )
 
 
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+def retrieve_and_rerank(question):
+
+    docs = retriever.invoke(question)
+    print("\nBefore Reranking")
+    for d in docs:
+        print(d.metadata["chunk_id"])
+
+    docs = rerank(
+        question,
+        docs,
+        top_k=3
+    )
+    print("\nAfter Reranking")
+    for d in docs:
+        print(d.metadata["chunk_id"])
+
+    return "\n\n".join(
+        doc.page_content
+        for doc in docs
+    )
 
 
 llm = ChatOllama(
@@ -45,7 +64,7 @@ llm = ChatOllama(
 
 rag_chain = (
     {
-        "context": retriever | format_docs,
+        "context": RunnableLambda(retrieve_and_rerank),
         "input": RunnablePassthrough(),
     }
     | prompt
